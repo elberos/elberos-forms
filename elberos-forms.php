@@ -20,10 +20,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
-
+ 
+ 
 if ( !class_exists( 'Elberos_Forms_Plugin' ) ) 
 {
+
+require_once "helpers/AmoCRMHelper.php";
+require_once "include/api.php";
 
 class Elberos_Forms_Plugin
 {
@@ -36,11 +39,10 @@ class Elberos_Forms_Plugin
 		add_action(
 			'admin_init', 
 			function(){
-				require_once "include/api.php";
 				require_once "include/forms.php";
+				require_once "include/integrations.php";
 				require_once "include/mail-settings.php";
-				//require_once "include/amocrm.php";
-				//require_once "include/phplist.php";
+				require_once "helpers/AmoCRMHelper.php";
 			}
 		);
 		add_action('admin_menu', 'Elberos_Forms_Plugin::register_admin_menu' );
@@ -58,9 +60,19 @@ class Elberos_Forms_Plugin
 			'manage_options', 'elberos-forms',
 			function ()
 			{
-				Elberos_Forms_Settings::show();
+				\Elberos\Forms\Settings::show();
 			},
 			null
+		);
+		
+		add_submenu_page(
+			'elberos-forms', 
+			'Integrations', 'Integrations', 
+			'manage_options', 'elberos-forms-integrations', 
+			function()
+			{
+				\Elberos\Forms\Integrations::show();
+			}
 		);
 		
 		add_submenu_page(
@@ -81,7 +93,33 @@ class Elberos_Forms_Plugin
 	 */
 	public static function register_api()
 	{
-		register_rest_route( 'elberos', 'submit_form', 'Elberos_Forms_Api::submit_form');
+		register_rest_route
+		(
+			'elberos_forms',
+			'submit_form',
+			array(
+				'methods' => 'POST',
+				'callback' => function ($arr){ return \Elberos\Forms\Api::submit_form($arr); },
+			)
+		);
+		register_rest_route
+		(
+			'elberos_forms',
+			'reload_amocrm_settings',
+			array(
+				'methods' => 'POST',
+				'callback' => function ($arr){ return \Elberos\Forms\Api::reload_amocrm_settings($arr); },'permission_callback' => function ()
+				{
+					$user_id = apply_filters( 'determine_current_user', false );
+					$user = get_userdata($user_id);
+					if ( in_array( 'administrator', (array) $user->roles ) )
+					{
+						return true;
+					}
+					return false;
+				}
+			)
+		);
 	}
 	
 }

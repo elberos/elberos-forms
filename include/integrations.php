@@ -21,36 +21,38 @@
 namespace Elberos\Forms;
 
 
-if ( !class_exists( 'Elberos_Forms_Settings' ) ) 
+if ( !class_exists( 'Elberos_Forms_Integrations' ) ) 
 {
 
-class Settings
+class Integrations
 {
 	public static function show()
 	{
-		$table = new Settings_Table();
+		$table = new Integrations_Table();
 		$table->display();		
 	}
 }
 
 
-class Settings_Table extends \WP_List_Table 
+class Integrations_Table extends \WP_List_Table 
 {
+	
+	const KIND_AMOCRM = "amocrm";
 	
 	function __construct()
     {
         global $status, $page;
 
         parent::__construct(array(
-            'singular' => 'elberos-forms',
-            'plural' => 'elberos-forms',
+            'singular' => 'elberos-forms-integrations',
+            'plural' => 'elberos-forms-integrations',
         ));
     }
 	
 	function get_table_name()
 	{
 		global $wpdb;
-		return $wpdb->prefix . 'elberos_forms';
+		return $wpdb->prefix . 'elberos_forms_integrations';
 	}
 	
 	// Вывод значений по умолчанию
@@ -59,8 +61,7 @@ class Settings_Table extends \WP_List_Table
 		return array(
 			'id' => 0,
 			'name' => '',
-			'api_name' => '',
-			'settings' => '',
+			'kind' => '',
 		);
 	}
 	
@@ -76,7 +77,7 @@ class Settings_Table extends \WP_List_Table
         $columns = array(
             'cb' => '<input type="checkbox" />', 
             'name' => __('Name', 'elberos-forms'),
-            'api_name' => __('Api Name', 'elberos-forms'),
+            'kind' => __('Kind', 'elberos-forms'),
             'buttons' => __('', 'elberos-forms'),
         );
         return $columns;
@@ -121,21 +122,10 @@ class Settings_Table extends \WP_List_Table
 	{
 		$actions = array(
 			'edit' => sprintf(
-				'<a href="?page=elberos-forms&action=edit&id=%s">%s</a>',
+				'<a href="?page=elberos-forms-integrations&action=edit&id=%s">%s</a>',
 				$item['id'], 
 				__('Edit', 'elberos-forms')
 			),
-			'amocrm' => sprintf(
-				'<a href="?page=elberos-forms&action=amocrm&id=%s">%s</a>',
-				$item['id'], 
-				__('AmoCRM', 'elberos-forms')
-			),
-			/*
-			'delete' => sprintf(
-				'<a href="?page=elberos-forms&action=show_delete&id=%s">%s</a>',
-				$item['id'],
-				__('Delete', 'elberos-forms')
-			),*/
 		);
 		
 		return $this->row_actions($actions, true);
@@ -206,7 +196,7 @@ class Settings_Table extends \WP_List_Table
 		{
 			$item = shortcode_atts($default, $_REQUEST);
 			$item_valid = $this->item_validate($item);
-			$item['settings'] = stripslashes($item['settings']);
+			$item['amocrm'] = json_encode($_REQUEST['amocrm']);
 			if ($item_valid === true)
 			{
 				if ($item['id'] == 0)
@@ -257,13 +247,6 @@ class Settings_Table extends \WP_List_Table
 			$item = $default;
 		}
 		
-		$settings = isset($item['settings']) ? $item['settings'] : "";
-		$obj = json_decode($settings);
-		if ($obj == null)
-		{
-			$notice = __('Settings json error', 'elberos-forms');
-		}
-		
 		?>
 		
 		<div class="wrap">
@@ -294,29 +277,116 @@ class Settings_Table extends \WP_List_Table
 			</form>
 		</div>
 		
+		<?php if ($item['id'] > 0): ?>
+			<br/>
+			<input type="button" class="button-secondary elberos_forms_amocrm_reload_settings_button" 
+				value="Reload amocrm settings"></input>
+			<div class="elberos_forms_amocrm_reload_settings"></div>
+			
+			<script>
+				jQuery(function($){
+					$('.elberos_forms_amocrm_reload_settings_button').click(function(){
+						$('.elberos_forms_amocrm_reload_settings').html("Wait please");
+						$.ajax({
+							url: "/wp-json/elberos_forms/reload_amocrm_settings/",
+							data: {
+								"integration_id": <?= json_encode($item['id']) ?>,
+							},
+							dataType: 'json',
+							method: 'post',
+							
+							cache: false,
+							contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+							processData: true,
+							
+							success: function(data, textStatus, jqXHR)
+							{
+								if (data.success)
+								{
+									$('.elberos_forms_amocrm_reload_settings').html("Success");
+								}
+								else
+								{
+									$('.elberos_forms_amocrm_reload_settings').html(data.message);
+								}
+							},
+							error: function(data)
+							{
+								$('.elberos_forms_amocrm_reload_settings').html(data);
+							},
+						});
+					});
+				});
+			</script>
+			
+		<?php endif;?>
+		
 		<?php
 	}
 	
 	function display_form($item)
 	{
+		$amocrm_settings = @json_decode(isset($item['amocrm']) ? $item['amocrm'] : "", true);
+		if (!$amocrm_settings) $amocrm_settings = [];
+		
 		?>
+		<!-- Name -->
 		<p>			
 		    <label for="name"><?php _e('Name:', 'elberos-forms')?></label>
 		<br>	
             <input id="name" name="name" type="text" style="width: 100%" required
 				value="<?php echo esc_attr($item['name'])?>" >
 		</p>
+		
+		<!-- Kind -->
 		<p>	
-            <label for="api_name"><?php _e('Api name:', 'elberos-forms')?></label>
+            <label for="kind"><?php _e('Kind:', 'elberos-forms')?></label>
 		<br>
-		    <input id="api_name" name="api_name" type="text" style="width: 100%" required
-				value="<?php echo esc_attr($item['api_name'])?>" >
+			<select id="kind" name="kind" type="text" style="width: 100%" required
+				value="<?php echo esc_attr($item['kind'])?>" >
+				<option value="" <?php selected( $item['kind'], "" ); ?>>Select value</option>
+				<option value="amocrm" <?php selected( $item['kind'], "amocrm" ); ?>>AmoCRM</option>
+			</select>
         </p>
-		<p>	
-            <label for="settings"><?php _e('Settings:', 'elberos-forms')?></label>
-		<br>
-			<textarea id="settings" name="settings" style="width: 100%;height: 300px;"><?php echo $item['settings']; ?></textarea>
-        </p>
+		
+		<!-- AmoCRM Settings -->
+		<div class='elberos_forms_integrations_amocrm'>
+			<p><b>AmoCRM Settings</b></p>
+			
+			<!-- AmoCRM Domain -->
+			<p>
+				<label for="amocrm_domain"><?php _e('AmoCRM Domain:', 'elberos-forms')?></label>
+			<br>
+				<input id="amocrm_domain" name="amocrm[domain]" type="text" style="width: 100%"
+					value="<?php echo esc_attr($amocrm_settings['domain'])?>" >
+			</p>
+			
+			<!-- AmoCRM Login -->
+			<p>
+				<label for="amocrm_login"><?php _e('AmoCRM Login:', 'elberos-forms')?></label>
+			<br>
+				<input id="amocrm_login" name="amocrm[login]" type="text" style="width: 100%"
+					value="<?php echo esc_attr($amocrm_settings['login'])?>" >
+			</p>
+			
+			<!-- AmoCRM API Key -->
+			<p>
+				<label for="amocrm_api"><?php _e('AmoCRM API Key:', 'elberos-forms')?></label>
+			<br>
+				<input id="amocrm_api" name="amocrm[api]" type="text" style="width: 100%"
+					value="<?php echo esc_attr($amocrm_settings['api'])?>" >
+			</p>
+			
+			<!-- AmoCRM WEB HOOK -->
+			<p>
+				<label for="amocrm_web_hook"><?php _e('AmoCRM WEB HOOK:', 'elberos-forms')?></label>
+			<br>
+				<input id="amocrm_web_hook" name="amocrm[web_hook]" type="text" style="width: 100%"
+					value="<?php echo esc_attr($amocrm_settings['web_hook'])?>" >
+			</p>
+			
+		</div>
+		
 		<?php
 	}
 	
@@ -327,7 +397,8 @@ class Settings_Table extends \WP_List_Table
 		?>
 		<div class="icon32 icon32-posts-post" id="icon-edit"><br></div>
 		<h2><?php _e('Forms', 'elberos-forms')?>
-			<a href="<?php echo get_admin_url(get_current_blog_id(), 'admin.php?page=elberos-forms&action=add');?>"
+			<a href="<?php echo get_admin_url(get_current_blog_id(), 
+				'admin.php?page=elberos-forms-integrations&action=add');?>"
 				class="add-new-h2"
 			>
 				<?php _e('Add new', 'elberos-forms')?>

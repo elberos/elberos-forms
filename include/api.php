@@ -18,16 +18,52 @@
  *  limitations under the License.
  */
 
+namespace Elberos\Forms;
+
+
 if ( !class_exists( 'Elberos_Forms_Api' ) ) 
 {
 
-class Elberos_Forms_Api
+class Api
 {
 	
 	/**
 	 * Api submit form
 	 */
-	public function submit_form()
+	public function reload_amocrm_settings($arr)
+	{
+		global $wpdb;
+		
+		$integration_id = isset($_POST['integration_id']) ? $_POST['integration_id'] : 0;
+		$message = "success";
+		$success = true;
+		
+		$config = AmoCRMHelper::getConfig($wpdb, $integration_id);
+		if ($config == null)
+		{
+			return [ "success" => false, "integration_id" => $integration_id, "message"=>"AmoCRM config error" ];
+		}
+		$auth = AmoCRMHelper::auth($config);
+		if (!$auth)
+		{
+			return [ "success" => false, "integration_id" => $integration_id, "message"=>"Auth Error" ];
+		}
+		AmoCRMHelper::syncData($wpdb, $config);
+		
+		return 
+		[
+			"success" => true,
+			"integration_id" => $integration_id,
+			"message" => $message,
+		];
+	}
+	
+	
+	
+	/**
+	 * Api submit form
+	 */
+	public function submit_form($arr)
 	{
 		
 	}

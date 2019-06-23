@@ -594,7 +594,7 @@ function elberosFormSubmit ( form_api_name, send_data, callback )
 					callback(data);
 				}
 			}
-		})(success, error),
+		})(callback),
 		error: (function(callback){
 			return function(data, textStatus, jqXHR){
 				
@@ -604,7 +604,7 @@ function elberosFormSubmit ( form_api_name, send_data, callback )
 				});
 				
 			}
-		})(success, error),
+		})(callback),
 	});
 	
 }
@@ -665,7 +665,7 @@ function elberosFormShowDialog(params)
 	{
 		return function()
 		{
-			var data = formsGetData( $form.find('.web_form__field') );
+			var data = elberosFormsGetData( $form.find('.web_form__field') );
 			var goal_type = dialog.isset(params['goal_type']) ? params['goal_type'] : 'site_zakaz';
 			var form_api_name = dialog.isset(params['form_api_name']) ? params['form_api_name'] : '';
 			var lead_title = dialog.isset(params['lead_title']) ? params['lead_title'] : '';

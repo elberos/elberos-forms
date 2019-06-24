@@ -45,9 +45,11 @@ class Elberos_Forms_Plugin
 				require_once "helpers/AmoCRMHelper.php";
 			}
 		);
-		add_action('admin_menu', 'Elberos_Forms_Plugin::register_admin_menu' );
-		add_action('rest_api_init', 'Elberos_Forms_Plugin::register_api' );
+		add_action('admin_menu', 'Elberos_Forms_Plugin::register_admin_menu');
+		add_action('rest_api_init', 'Elberos_Forms_Plugin::register_api');
+		add_action('send_headers', 'Elberos_Forms_Plugin::send_headers');
 	}
+	
 	
 	
 	/**
@@ -100,6 +102,7 @@ class Elberos_Forms_Plugin
 	}
 	
 	
+	
 	/**
 	 * Register API
 	 */
@@ -132,6 +135,44 @@ class Elberos_Forms_Plugin
 				}
 			)
 		);
+	}
+	
+	
+	
+	/**
+	 * Send headers
+	 */
+	public static function send_headers()
+	{
+		// headers
+		$utm_source = isset($_GET['utm_source']) ? $_GET['utm_source'] : null;
+		$utm_medium = isset($_GET['utm_medium']) ? $_GET['utm_medium'] : null;
+		$utm_campaign = isset($_GET['utm_campaign']) ? $_GET['utm_campaign'] : null;
+		$utm_content = isset($_GET['utm_content']) ? $_GET['utm_content'] : null;
+		$utm_term = isset($_GET['utm_term']) ? $_GET['utm_term'] : null;
+		$utm_place = isset($_GET['utm_place']) ? $_GET['utm_place'] : null;
+		$utm_pos = isset($_GET['utm_pos']) ? $_GET['utm_pos'] : null;
+		
+		if (
+			$utm_source != null ||
+			$utm_medium != null ||
+			$utm_campaign != null ||
+			$utm_content != null ||
+			$utm_term != null
+		)
+		{
+			$utm = [
+				's' => $utm_source,
+				'm' => $utm_medium,
+				'cmp' => $utm_campaign,
+				'cnt' => $utm_content,
+				't' => $utm_term,
+				'pl' => $utm_place,
+				'ps' => $utm_pos,
+			];
+			
+			setcookie( "f_utm", json_encode($utm), time() + 7*24*60*60, "/" );
+		}
 	}
 	
 }

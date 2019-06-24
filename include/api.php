@@ -142,6 +142,19 @@ class Api
 		}
 		
 		
+		/* Add UTM */
+		$f_utm = isset($_COOKIE['f_utm']) ? $_COOKIE['f_utm'] : null;
+		if ($f_utm) $f_utm = @json_decode( stripslashes($f_utm), true);
+		if ($f_utm)
+		{
+			$utm['utm_source'] = isset($f_utm['s']) ? $f_utm['s'] : null;
+			$utm['utm_medium'] = isset($f_utm['m']) ? $f_utm['m'] : null;
+			$utm['utm_campaign'] = isset($f_utm['cmp']) ? $f_utm['cmp'] : null;
+			$utm['utm_content'] = isset($f_utm['cnt']) ? $f_utm['cnt'] : null;
+			$utm['utm_term'] = isset($f_utm['t']) ? $f_utm['t'] : null;
+		}
+		
+		
 		/* Insert data */
 		$data_s = json_encode($data);
 		$utm_s = json_encode($utm);

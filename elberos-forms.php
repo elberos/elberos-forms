@@ -67,6 +67,18 @@ class Elberos_Forms_Plugin
 		
 		add_submenu_page(
 			'elberos-forms', 
+			'Forms data', 'Forms data', 
+			'manage_options', 'elberos-forms-data', 
+			function()
+			{
+				//\Elberos\Forms\Data::show();
+				echo "1234";
+			}
+		);
+		
+		
+		add_submenu_page(
+			'elberos-forms', 
 			'Integrations', 'Integrations', 
 			'manage_options', 'elberos-forms-integrations', 
 			function()
@@ -81,7 +93,7 @@ class Elberos_Forms_Plugin
 			'manage_options', 'elberos-forms-mail-settings', 
 			function()
 			{
-				echo "Elberos Forms Mail Settings";
+				\Elberos\Forms\MailSettings::show();
 			}
 		);
 		

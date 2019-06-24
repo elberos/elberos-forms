@@ -21,7 +21,7 @@
 namespace Elberos\Forms;
 
 
-if ( !class_exists( 'Elberos_Forms_Integrations' ) ) 
+if ( !class_exists( Integrations::class ) ) 
 {
 
 class Integrations

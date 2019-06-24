@@ -550,10 +550,9 @@ function elberosFormsGetData( $items )
 
 function elberosFormSubmit ( form_api_name, send_data, callback )
 {
-	var data = {};
-	data['form_api_name'] = form_api_name;
-	data['data'] = send_data;
-	//data['_form_token'] = getCookie(SECRET_TOKEN_NAME);
+	send_data['form_api_name'] = form_api_name;
+	if (send_data['data'] == undefined) send_data['data'] = {};
+	if (send_data['utm'] == undefined) send_data['utm'] = {};
 	
 	var gclid = null;
 	try{
@@ -563,21 +562,20 @@ function elberosFormSubmit ( form_api_name, send_data, callback )
 	}
 	if (gclid)
 	{
-		data['data']['gclid'] = gclid;
+		send_data['utm']['gclid'] = gclid;
 	}
 	
 	var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
 	var processData = true;
-	if (data instanceof FormData){
+	if (send_data instanceof FormData)
+	{
 		contentType = false;
 		processData = false;
 	}
 	
-	var url = "/api/";
-	
 	$.ajax({
-		url: url,
-		data: data,
+		url: "/wp-json/elberos_forms/submit_form/",
+		data: send_data,
 		dataType: 'json',
 		method: 'post',
 		
@@ -585,12 +583,21 @@ function elberosFormSubmit ( form_api_name, send_data, callback )
         contentType: contentType,
         processData: processData,
 		
+		beforeSend: (function(send_data){ return function(xhr)
+		{
+			//this picks up value set in functions.php to allow authentication to be passed through with function so WP knows to allow deletion.
+			
+			xhr.setRequestHeader('X-WP-Nonce', send_data['_wpnonce']);
+		}})(send_data),
+		
 		success: (function(callback){
 			return function(data, textStatus, jqXHR){
-				if (data.success){
+				if (data.success)
+				{
 					callback(data);
 				}
-				else{
+				else
+				{
 					callback(data);
 				}
 			}
@@ -665,12 +672,29 @@ function elberosFormShowDialog(params)
 	{
 		return function()
 		{
-			var data = elberosFormsGetData( $form.find('.web_form__field') );
+			var data = { "utm": {}, "data": {}, };
 			var goal_type = dialog.isset(params['goal_type']) ? params['goal_type'] : 'site_zakaz';
 			var form_api_name = dialog.isset(params['form_api_name']) ? params['form_api_name'] : '';
-			var lead_title = dialog.isset(params['lead_title']) ? params['lead_title'] : '';
-			data['goal_type'] = goal_type;
-			data['lead_title'] = lead_title;
+			var form_name = dialog.isset(params['form_name']) ? params['form_name'] : '';
+			data['utm']['goal_type'] = goal_type;
+			data['utm']['form_name'] = form_name;
+			
+			/* Add form fields */
+			$form.find('input').each(
+				function()
+				{
+					var key = $(this).attr('name');
+					var value = elberosFormsGetFieldValue(this);
+					if ( $(this).hasClass('web_form__field') )
+					{
+						data['data'][key] = value;
+					}
+					else
+					{
+						data[key] = value;
+					}
+				}
+			);
 			
 			$form.find('.web_form__result').html(MESSAGES['WAIT_REQUEST']);
 			$form.find('.web_form__result').removeClass('web_form__result--error');
@@ -681,9 +705,9 @@ function elberosFormShowDialog(params)
 				form_api_name, data,
 				
 				// Result
-				function(res)
+				(function(params){ return function(res)
 				{
-					if (res.code == 1)
+					if (res.success)
 					{
 						$form.find('.web_form__result').addClass('web_form__result--success');
 						if (params.success_message != undefined)
@@ -695,9 +719,9 @@ function elberosFormShowDialog(params)
 							$form.find('.web_form__result').html(res.message);
 						}
 						
-						if (sendSiteEvent != undefined)
+						if (sendSiteEvent != undefined && params.goal_type != undefined)
 						{
-							sendSiteEvent('metrika_event', goal_type);
+							sendSiteEvent('metrika_event', params.goal_type);
 						}
 						
 						if (params.success_redirect != undefined)
@@ -727,7 +751,7 @@ function elberosFormShowDialog(params)
 										var arr = res.fields[key];
 										for (var i=0; i<arr.length; i++)
 										{
-											$(this).append( "<div>" + arr[i].message + "</div>" );
+											$(this).append( "<div>" + arr[i] + "</div>" );
 										}
 									}
 								);
@@ -735,7 +759,7 @@ function elberosFormShowDialog(params)
 						}
 						
 					}
-				},
+				}})(params),
 			);
 		}
 	}($form, params));

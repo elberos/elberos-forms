@@ -21,7 +21,7 @@
 namespace Elberos\Forms;
 
 
-if ( !class_exists( 'Elberos_Forms_Settings' ) ) 
+if ( !class_exists( Settings::class ) ) 
 {
 
 class Settings

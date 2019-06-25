@@ -71,6 +71,23 @@ class Api
 	
 	
 	/**
+	 * Get field by name
+	 */
+	public static function getFieldByName($fields, $field_name)
+	{
+		foreach ($fields as $field)
+		{
+			if ($field['name'] == $field_name)
+			{
+				return $field;
+			}
+		}
+		return null;
+	}
+	
+	
+	
+	/**
 	 * Api submit form
 	 */
 	public function submit_form($params)
@@ -80,7 +97,7 @@ class Api
 		$table_forms_name = $wpdb->prefix . 'elberos_forms';
 		$table_forms_data_name = $wpdb->prefix . 'elberos_forms_data';
 		$form_api_name = isset($_POST["form_api_name"]) ? $_POST["form_api_name"] : "";
-		$forms_wp_nonce = isset($_POST["_wpnonce"]) ? $_POST["_wpnonce"] : "";		
+		$forms_wp_nonce = isset($_POST["_wpnonce"]) ? $_POST["_wpnonce"] : "";
 		$wp_nonce_res = (int)wp_verify_nonce($forms_wp_nonce, 'wp_rest');
 		
 		/* Check wp nonce */
@@ -94,7 +111,6 @@ class Api
 				"code" => -1,
 			];
 		}
-		
 		
 		/* Find form */
 		$forms = $wpdb->get_results(	
@@ -117,19 +133,53 @@ class Api
 		}
 		
 		$form_id = $form['id'];
+		$form_settings = @json_decode($form['settings'], true);
+		$form_settings_fields = isset($form_settings['fields']) ? $form_settings['fields'] : [];
+		$form_data = [];
 		$data = isset($_POST["data"]) ? $_POST["data"] : [];
 		$utm = isset($_POST["utm"]) ? $_POST["utm"] : [];
-		
 		
 		/* Validate fields */
 		$fields = [];
 		foreach ($data as $key => $value)
 		{
-			if ($value == "")
+			$field = static::getFieldByName($form_settings_fields, $key);
+			if ($field == null)
+			{
+				continue;
+			}
+			
+			$required = isset($field['required']) ? $field['required'] : false;
+			if ($value == "" && $required)
 			{
 				$fields[$key][] = __("Empty fields", "elberos-forms");
 			}
+			
+			$form_data[$key] = $value;
 		}
+		
+		/* Add missing fields */
+		foreach ($form_settings_fields as $field)
+		{
+			$key = isset($field['name']) ? $field['name'] : "";
+			if ($key == null)
+			{
+				continue;
+			}
+			if (isset($data[$key]))
+			{
+				continue;
+			}
+			$required = isset($field['required']) ? $field['required'] : false;
+			if ($required)
+			{
+				$fields[$key][] = __("Empty fields", "elberos-forms");
+			}
+			
+			$form_data[$key] = "";
+		}
+		
+		/* If validate fields error */
 		if (count ($fields) > 0)
 		{
 			return 
@@ -140,7 +190,6 @@ class Api
 				"code" => -1,
 			];
 		}
-		
 		
 		/* Add UTM */
 		$f_utm = isset($_COOKIE['f_utm']) ? $_COOKIE['f_utm'] : null;
@@ -156,11 +205,11 @@ class Api
 		
 		
 		/* Insert data */
-		$data_s = json_encode($data);
+		$data_s = json_encode($form_data);
 		$utm_s = json_encode($utm);
 		
 		$q = $wpdb->prepare(
-			"INSERT INTO $table_forms_data_name 
+			"INSERT INTO $table_forms_data_name
 				(
 					form_id, data, utm
 				) 
@@ -171,7 +220,7 @@ class Api
 		);
 		$wpdb->query($q);
 		
-		return 
+		return
 		[
 			"success" => true,
 			"message" => "Ok",

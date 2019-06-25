@@ -40,6 +40,7 @@ class Elberos_Forms_Plugin
 			'admin_init', 
 			function(){
 				require_once "include/forms.php";
+				require_once "include/forms-data.php";
 				require_once "include/integrations.php";
 				require_once "include/mail-settings.php";
 				require_once "helpers/AmoCRMHelper.php";
@@ -73,8 +74,7 @@ class Elberos_Forms_Plugin
 			'manage_options', 'elberos-forms-data', 
 			function()
 			{
-				//\Elberos\Forms\Data::show();
-				echo "1234";
+				\Elberos\Forms\Data::show();
 			}
 		);
 		

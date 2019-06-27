@@ -61,7 +61,7 @@ class Data_Table extends \WP_List_Table
 		return $wpdb->prefix . 'elberos_forms_data';
 	}
 		
-	// Âûâîä çíà÷åíèé ïî óìîë÷àíèþ
+	// Ð’Ñ‹Ð²Ð¾Ð´ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ð¹ Ð¿Ð¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ
 	function get_default()
 	{
 		return array(
@@ -72,13 +72,13 @@ class Data_Table extends \WP_List_Table
 		);
 	}
 	
-	// Âàëèäàöèÿ çíà÷åíèé
+	// Ð’Ð°Ð»Ð¸Ð´Ð°Ñ†Ð¸Ñ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ð¹
 	function item_validate($item)
 	{
 		return true;
 	}
 	
-	// Êîëîíêè òàáëèöû
+	// ÐšÐ¾Ð»Ð¾Ð½ÐºÐ¸ Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹
 	function get_columns()
     {
         $columns = array(
@@ -90,7 +90,7 @@ class Data_Table extends \WP_List_Table
         return $columns;
     }
 	
-	// Ñîðòèðóåìûå êîëîíêè
+	// Ð¡Ð¾Ñ€Ñ‚Ð¸Ñ€ÑƒÐµÐ¼Ñ‹Ðµ ÐºÐ¾Ð»Ð¾Ð½ÐºÐ¸
     function get_sortable_columns()
     {
         $sortable_columns = array(
@@ -100,19 +100,19 @@ class Data_Table extends \WP_List_Table
         return $sortable_columns;
     }
 	
-	// Äåéñòâèÿ
+	// Ð”ÐµÐ¹ÑÑ‚Ð²Ð¸Ñ
 	function get_bulk_actions()
     {
 		return null;
     }
 	
-	// Âûâîä êàæäîé ÿ÷åéêè òàáëèöû
+	// Ð’Ñ‹Ð²Ð¾Ð´ ÐºÐ°Ð¶Ð´Ð¾Ð¹ ÑÑ‡ÐµÐ¹ÐºÐ¸ Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹
 	function column_default($item, $column_name)
     {
         return isset($item[$column_name])?$item[$column_name]:'';
     }
 	
-	// Çàïîëíåíèå êîëîíêè cb
+	// Ð—Ð°Ð¿Ð¾Ð»Ð½ÐµÐ½Ð¸Ðµ ÐºÐ¾Ð»Ð¾Ð½ÐºÐ¸ cb
 	function column_cb($item)
     {
         return sprintf(
@@ -121,17 +121,8 @@ class Data_Table extends \WP_List_Table
         );
     }
 	
-	// Decode DATA keys
-	function decode_data_key($form_id, $key)
-	{
-		$form_settings = $this->get_form_settings($form_id);
-		$field_settings = $this->get_field_settings($form_settings, $key);
-		//var_dump($form_settings);
-		if ($field_settings == null) return $key;
-		return $field_settings["title"];
-	}
 	
-	// Êîëîíêà DATA
+	// ÐšÐ¾Ð»Ð¾Ð½ÐºÐ° DATA
 	function column_data($item)
 	{
 		$text = "";
@@ -140,22 +131,15 @@ class Data_Table extends \WP_List_Table
 		foreach ($arr as $key => $value)
 		{
 			if ($value == "") continue;
-			$key = $this->decode_data_key($item['form_id'], $key);
+			$key = FormsDataHelper::decode_data_key($item['form_id'], $key);
 			if ($key == "") continue;
 			$res[] = $key . ": ". mb_substr($value, 0, 30);
 		}
 		return implode($res, "<br/>\n");
 	}
 	
-	// Decode UTM keys
-	function decode_utm_key($key)
-	{
-		if ($key == "goal_type") return "";
-		if ($key == "utm_source") return __('UTM Source', 'elberos-forms');
-		return "";
-	}
 	
-	// Êîëîíêà UTM
+	// ÐšÐ¾Ð»Ð¾Ð½ÐºÐ° UTM
 	function column_utm($item)
 	{
 		$text = "";
@@ -164,14 +148,15 @@ class Data_Table extends \WP_List_Table
 		foreach ($arr as $key => $value)
 		{
 			if ($value == "") continue;
-			$key = $this->decode_utm_key($key);
+			$key = FormsDataHelper::decode_utm_key($key);
 			if ($key == "") continue;
 			$res[] = $key . ": ". mb_substr($value, 0, 30);
 		}
 		return implode($res, "<br/>\n");
 	}
 	
-	// Êîëîíêà name
+	
+	// ÐšÐ¾Ð»Ð¾Ð½ÐºÐ° name
 	function column_buttons($item)
 	{
 		$actions = array(
@@ -185,7 +170,8 @@ class Data_Table extends \WP_List_Table
 		return $this->row_actions($actions, true);
 	}
 	
-	// Ñîçäàåò ýëåìåíòû òàáëèöû
+	
+	// Ð¡Ð¾Ð·Ð´Ð°ÐµÑ‚ ÑÐ»ÐµÐ¼ÐµÐ½Ñ‚Ñ‹ Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹
     function prepare_items()
     {
         global $wpdb;
@@ -267,7 +253,7 @@ class Data_Table extends \WP_List_Table
 		foreach ($form_data as $key => $value)
 		{
 			if ($value == "") continue;
-			$key_title = $this->decode_data_key($item['form_id'], $key);
+			$key_title = FormsDataHelper::decode_data_key($item['form_id'], $key);
 			if ($key_title == "") continue;
 			$form_data_res[] = [
 				'key'=>$key,
@@ -278,7 +264,7 @@ class Data_Table extends \WP_List_Table
 		foreach ($form_utm as $key => $value)
 		{
 			if ($value == "") continue;
-			$key_title = $this->decode_utm_key($key);
+			$key_title = FormsDataHelper::decode_utm_key($key);
 			if ($key_title == "") continue;
 			$form_data_res[] = [
 				'key'=>$key,
@@ -293,8 +279,8 @@ class Data_Table extends \WP_List_Table
 			{
 				return "
 					<tr class='forms_data_item'>
-						<td class='forms_data_item_key'>".$item['title']."</td>
-						<td class='forms_data_item_value'>".$item['value']."</td>
+						<td class='forms_data_item_key'>".esc_html($item['title'])."</td>
+						<td class='forms_data_item_value'>".esc_html($item['value'])."</td>
 					</tr>
 				";
 			},
@@ -347,7 +333,7 @@ class Data_Table extends \WP_List_Table
 			<h2><?php echo get_admin_page_title() ?></h2>
 
 			<?php
-			// âûâîäèì òàáëèöó íà ýêðàí ãäå íóæíî
+			// Ð²Ñ‹Ð²Ð¾Ð´Ð¸Ð¼ Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñƒ Ð½Ð° ÑÐºÑ€Ð°Ð½ Ð³Ð´Ðµ Ð½ÑƒÐ¶Ð½Ð¾
 			echo '<form action="" method="POST">';
 			parent::display();
 			echo '</form>';
@@ -359,9 +345,9 @@ class Data_Table extends \WP_List_Table
 	
 	function display()
 	{
-		$this->load_forms_settings();
-		$action = $this->current_action();
+		FormsDataHelper::load_forms_settings();
 		
+		$action = $this->current_action();
 		if ($action == 'show')
 		{
 			$this->display_item();
@@ -370,58 +356,6 @@ class Data_Table extends \WP_List_Table
 		{
 			$this->display_table();
 		}
-	}
-	
-	
-	
-	function load_forms_settings()
-	{
-		global $wpdb;
-		$forms_settings_table_name = $this->get_forms_settings_table_name();
-		$this->forms_settings = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT t.* FROM $forms_settings_table_name as t", []
-			),
-			ARRAY_A
-		);
-	}
-	
-	
-	function get_form_settings($form_id)
-	{
-		foreach ($this->forms_settings as $item)
-		{
-			if ($item['id'] == $form_id)
-			{
-				return @json_decode($item['settings'], true);
-			}
-		}
-		return null;
-	}
-	
-	
-	function get_field_settings($form_settings, $field_name)
-	{
-		if ($form_settings == null)
-		{
-			return null;
-		}
-		if (!isset($form_settings['fields']))
-		{
-			return null;
-		}
-		foreach ($form_settings['fields'] as $item)
-		{
-			if (!isset($item['name']))
-			{
-				continue;
-			}
-			if ($item['name'] == $field_name)
-			{
-				return $item;
-			}
-		}
-		return null;
 	}
 	
 }

@@ -41,6 +41,7 @@ class MailSettings
 		
 		if ( isset($_POST["nonce"]) && (int)wp_verify_nonce($_POST["nonce"], basename(__FILE__)) > 0 )
 		{
+			$enable = isset($_POST['enable']) ? $_POST['enable'] : '';
 			$host = isset($_POST['host']) ? $_POST['host'] : '';
 			$port = isset($_POST['port']) ? $_POST['port'] : '';
 			$login = isset($_POST['login']) ? $_POST['login'] : '';
@@ -48,6 +49,7 @@ class MailSettings
 			$ssl_enable = isset($_POST['ssl_enable']) ? $_POST['ssl_enable'] : '';
 			$email_to = isset($_POST['email_to']) ? $_POST['email_to'] : '';
 			
+			static::update_key("elberos_forms_mail_enable", $enable);
 			static::update_key("elberos_forms_mail_host", $host);
 			static::update_key("elberos_forms_mail_port", $port);
 			static::update_key("elberos_forms_mail_login", $login);
@@ -59,6 +61,7 @@ class MailSettings
 		
 		$item = 
 		[
+			'enable' => get_option( 'elberos_forms_mail_enable', '' ),
 			'host' => get_option( 'elberos_forms_mail_host', '' ),
 			'port' => get_option( 'elberos_forms_mail_port', '' ),
 			'login' => get_option( 'elberos_forms_mail_login', '' ),
@@ -94,6 +97,18 @@ class MailSettings
 	public static function display_form($item)
 	{
 		?>
+		
+		<!-- Mail enable -->
+		<p>
+		    <label for="enable"><?php _e('Mail Enable:', 'elberos-forms')?></label>
+		<br>
+			<select id="enable" name="enable" type="text" style="width: 100%"
+				value="<?php echo esc_attr($item['enable'])?>" >
+				<option value="" <?php selected( $item['enable'], "" ); ?>>Select value</option>
+				<option value="yes" <?php selected( $item['enable'], "yes" ); ?>>Yes</option>
+				<option value="no" <?php selected( $item['enable'], "no" ); ?>>No</option>
+			</select>
+		</p>
 		
 		<!-- Mail host -->
 		<p>

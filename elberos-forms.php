@@ -25,7 +25,9 @@
 if ( !class_exists( 'Elberos_Forms_Plugin' ) ) 
 {
 
+require_once "helpers/MailSender.php";
 require_once "helpers/AmoCRMHelper.php";
+require_once "helpers/FormsDataHelper.php";
 require_once "include/api.php";
 
 class Elberos_Forms_Plugin
@@ -38,17 +40,39 @@ class Elberos_Forms_Plugin
 	{
 		add_action(
 			'admin_init', 
-			function(){
+			function()
+			{
 				require_once "include/forms.php";
 				require_once "include/forms-data.php";
 				require_once "include/integrations.php";
 				require_once "include/mail-settings.php";
-				require_once "helpers/AmoCRMHelper.php";
 			}
 		);
 		add_action('admin_menu', 'Elberos_Forms_Plugin::register_admin_menu');
 		add_action('rest_api_init', 'Elberos_Forms_Plugin::register_api');
 		add_action('send_headers', 'Elberos_Forms_Plugin::send_headers');
+		
+		// Add Cron
+		add_filter( 'cron_schedules', 'Elberos_Forms_Plugin::cron_schedules' );
+		if ( !wp_next_scheduled( 'elberos_forms_cron_send_mail' ) )
+		{
+			wp_schedule_event( time() + 60, 'elberos_forms_two_minute', 'elberos_forms_cron_send_mail' );
+		}
+		add_action( 'elberos_forms_cron_send_mail', 'Elberos\Forms\MailSender::cron_send_mail' );
+	}
+	
+	
+	
+	/**
+	 * Cron schedules
+	 */
+	public static function cron_schedules()
+	{
+		$schedules['elberos_forms_two_minute'] = array(
+			'interval' => 120, // Каждые 2 минуты
+			'display'  => __( 'Once Two Minute', 'elberos-forms' ),
+		);
+		return $schedules;
 	}
 	
 	

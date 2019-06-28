@@ -125,10 +125,10 @@ class Settings_Table extends \WP_List_Table
 				$item['id'], 
 				__('Edit', 'elberos-forms')
 			),
-			'amocrm' => sprintf(
-				'<a href="?page=elberos-forms&action=amocrm&id=%s">%s</a>',
+			'integrations' => sprintf(
+				'<a href="?page=elberos-forms&action=integrations&id=%s">%s</a>',
 				$item['id'], 
-				__('AmoCRM', 'elberos-forms')
+				__('Integrations', 'elberos-forms')
 			),
 			/*
 			'delete' => sprintf(
@@ -269,6 +269,7 @@ class Settings_Table extends \WP_List_Table
 		<div class="wrap">
 			<div class="icon32 icon32-posts-post" id="icon-edit"><br></div>
 			<h2><?php _e($item['id'] > 0 ? 'Forms Edit' : 'Forms Add', 'elberos-forms')?></h2>
+			<a type="button" class='button-primary'  href='?page=elberos-forms'> Back </a> </a>
 			
 			<?php if (!empty($notice)): ?>
 				<div id="notice" class="error"><p><?php echo $notice ?></p></div>
@@ -355,6 +356,10 @@ class Settings_Table extends \WP_List_Table
 		if ($action == 'add' or $action == 'edit')
 		{
 			$this->display_add_or_edit();
+		}
+		else if ($action == 'integrations')
+		{
+			FormsIntegrations::showIntegrations();
 		}
 		else
 		{

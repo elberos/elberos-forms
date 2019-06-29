@@ -121,6 +121,7 @@ public static function loadAmoCRMFields($integration_id)
 			'name' => $item['name'],
 			'field_type' => $item['field_type'],
 			'sort' => $item['sort'],
+			'enums' => json_decode($item['enums'], true),
 		];
 	}
 	
@@ -192,11 +193,11 @@ public static function showIntegrations()
 		padding-top: 20px;
 	}
 	.forms_integrations_left, .forms_integrations_right{
+		box-sizing: border-box;
 		display: inline-block;
 		width: calc(50% - 10px);
 		vertical-align: top;
 		padding: 10px;
-		box-sizing: border-box;
 	}
 	.forms_integration_item{
 		display: block;
@@ -227,6 +228,29 @@ public static function showIntegrations()
 	.amocrm_field_value select, .amocrm_field_value input
 	{
 		width: 100%;
+	}
+	.amocrm_additional_field{
+	}
+	.amocrm_additional_field_item{
+		box-sizing: border-box;
+		display: inline-block;
+		vertical-align: middle;
+		padding: 0px 5px;
+	}
+	.amocrm_additional_field_name{
+		width: calc(33% - 20px);
+	}
+	.amocrm_additional_field_value1{
+		width: calc(33% - 20px);
+	}
+	.amocrm_additional_field_value2{
+		width: calc(33% - 20px);
+	}
+	.amocrm_additional_field_remove{
+		width: 50px;
+	}
+	.amocrm_add_field_div{
+		padding-top: 20px;
 	}
 </style>
 
@@ -292,7 +316,8 @@ public static function showIntegrationsSettings()
 		'amocrm_status' => '',
 		'amocrm_manager' => '',
 		'amocrm_tags' => '',
-		'amocrm_fields' => '',
+		'amocrm_fields' => [],
+		'amocrm_fields_additional' => [],
 	];
 	
 	$notice = "";
@@ -307,9 +332,11 @@ public static function showIntegrationsSettings()
 			'amocrm_status' => isset($_POST['amocrm_status']) ? $_POST['amocrm_status'] : '',
 			'amocrm_manager' => isset($_POST['amocrm_manager']) ? $_POST['amocrm_manager'] : '',
 			'amocrm_tags' => isset($_POST['amocrm_tags']) ? $_POST['amocrm_tags'] : '',
-			'amocrm_fields' => isset($_POST['amocrm_fields']) ? $_POST['amocrm_fields'] : '',
+			'amocrm_fields' => isset($_POST['amocrm_fields']) ? $_POST['amocrm_fields'] : [],
+			'amocrm_fields_additional' => isset($_POST['amocrm_fields_additional']) ? 
+				$_POST['amocrm_fields_additional'] : [],
 		];
-		
+		$item['amocrm_fields_additional'] = array_values($item['amocrm_fields_additional']);
 		$item_settings = json_encode($item);
 		$table_name_settings = $wpdb->prefix . 'elberos_forms_integrations_settings';
 		$q = $wpdb->prepare(
@@ -363,9 +390,12 @@ public static function showIntegrationsSettings()
 
 
 <script>
+var form_settings = <?= static::$form_settings['settings'] ?>;
 var amocrm_pipelines = <?= json_encode($amocrm_pipelines) ?>;
 var amocrm_statuses = <?= json_encode($amocrm_statuses) ?>;
 var amocrm_managers = <?= json_encode($amocrm_managers) ?>;
+var amocrm_fields = <?= json_encode($amocrm_fields) ?>;
+var amocrm_item = <?= json_encode($item) ?>;
 </script>
 
 
@@ -531,6 +561,7 @@ jQuery(document).ready(function(){
 <p>
 	<label for="tags">Additional Fields:</label>
 	<br>
+	<?php static::displayAmoCRMAdditionalFields() ?>
 </p>
 
 <input type="submit" id="submit" class="button-primary" name="submit"
@@ -539,6 +570,267 @@ jQuery(document).ready(function(){
 </form>
 <?php
 }
+
+
+
+public static function displayAmoCRMAdditionalFields()
+{
+?>
+
+<div class='amocrm_additional_fields'>
+</div>
+
+<script>
+
+function amocrm_find_field(field_id)
+{
+	for (var i in amocrm_fields)
+	{
+		var field = amocrm_fields[i];
+		if (field.field_id == field_id)
+		{
+			return field;
+		}
+	}
+	return null;
+}
+	
+function amocrm_find_additional_field(field_id)
+{
+	var amocrm_fields_additional = amocrm_item.amocrm_fields_additional;
+	if (amocrm_fields_additional == undefined) amocrm_fields_additional = [];
+	for (var i in amocrm_fields_additional)
+	{
+		var field = amocrm_fields_additional[i];
+		if (field['field_id'] == field_id)
+		{
+			return field;
+		}
+	}
+	return null;
+}
+	
+	
+function render_additional_fields()
+{
+	jQuery('.amocrm_additional_fields').html('');
+	
+	
+	// Rend field list
+	var amocrm_fields_additional = amocrm_item.amocrm_fields_additional;
+	if (amocrm_fields_additional == undefined) amocrm_fields_additional = [];
+	for (var amocrm_fields_additional_key in amocrm_fields_additional)
+	{
+		var field_item = amocrm_fields_additional[amocrm_fields_additional_key];
+		var field_id = field_item.field_id;
+		var field = amocrm_find_field(field_id);
+		if (!field)
+		{
+			continue ;
+		}
+		var field_value1 = field_item.field_value1;
+		var field_value2 = field_item.field_value2;
+		
+		var $div_field = jQuery('<div class="amocrm_additional_field"></div>');
+		$div_field.attr('id', field_id);
+		
+		
+		// Add hidden input
+		var $input = jQuery('<input></input>');
+		$input.attr('type', 'hidden');
+		$input.attr('name', 'amocrm_fields_additional['+field_id+'][field_id]');
+		$input.val(field_id);
+		$div_field.append($input);
+		
+		
+		
+		// Add field name
+		var $div_name = jQuery('<div class="amocrm_additional_field_item amocrm_additional_field_name"></div>');
+		$div_name.html(field.name + '(' + field.db + ')');
+		$div_field.append($div_name);
+		
+		
+		
+		// Add field values
+		var $div_value1 = jQuery('<div class="amocrm_additional_field_item amocrm_additional_field_value1"></div>');
+		var $select = jQuery('<select style="width: 100%"></select>');
+		$select.attr("data-field-id", field_id);
+		$select.attr('name', 'amocrm_fields_additional['+field_id+'][field_value1]');
+		$select.append('<option value="">Select value</option>');
+		for (var j in form_settings.fields)
+		{
+			var val = form_settings.fields[j];
+			var $option = jQuery('<option></option>');
+			if (val == field_value1) $option.attr('selected', 'selected');
+			$option.attr('value', val.name);
+			$option.html(val.name + '(' + val.title + ')');
+			$select.append($option);
+		}
+		$div_value1.append($select);
+		$div_field.append($div_value1);
+		
+		
+		
+		// Add field list
+		var $div_value2 = jQuery('<div class="amocrm_additional_field_item amocrm_additional_field_value2"></div>');
+		if (field.field_type == 4) // Amocrm Select Type
+		{
+			var $select = jQuery('<select style="width: 100%"></select>');
+			$select.attr("data-field-id", field_id);
+			$select.attr('name', 'amocrm_fields_additional['+field_id+'][field_value2]');
+			$select.append('<option value="">Select value</option>');
+			for (var item_enum_key in field.enums)
+			{
+				var item_enum_value = field.enums[item_enum_key];
+				var $option = jQuery('<option></option>');
+				if (item_enum_key == field_value2) $option.attr('selected', 'selected');
+				$option.attr('value', item_enum_key);
+				$option.html(item_enum_value);
+				$select.append($option);
+			}
+			$div_value2.append($select);
+		}
+		else // Other
+		{
+		}
+		$div_field.append($div_value2);
+		
+		
+		// Remove button
+		var $div_remove = jQuery('<div class="amocrm_additional_field_item amocrm_additional_field_remove"></div>');
+		var $button = jQuery("<button type='button' class='amocrm_additional_field_remove_button'>[Del]</button>");
+		$button.attr("data-field-id", field_id);
+		$div_remove.append($button);
+		$div_field.append($div_remove);
+		
+		
+		jQuery('.amocrm_additional_fields').append($div_field);
+	}
+	
+	
+	// Render add field select
+	var $div_add = jQuery('<div class="amocrm_add_field_div"></div>');
+	var $add_fields = jQuery('<select class="amocrm_add_field_select"></select>');
+	$add_fields.append('<option value="">Add field</option>');
+	for (var i in amocrm_fields)
+	{
+		var field = amocrm_fields[i];
+		if (!amocrm_find_additional_field(field.field_id))
+		{
+			var $option = jQuery('<option></option>');
+			$option.attr('value', field.field_id);
+			$option.html(field.name + ' ('+ field.db +')');
+			$add_fields.append($option);
+		}
+	}
+	$div_add.append($add_fields);
+	jQuery('.amocrm_additional_fields').append($div_add);
+}
+
+jQuery(document).ready(function(){
+	
+	render_additional_fields();
+	
+	
+	// Change value1
+	jQuery(document).on(
+		'change',
+		'.amocrm_additional_field_value1 select', 
+		function()
+		{
+			var value = jQuery(this).val();
+			var field_id = jQuery(this).attr("data-field-id");
+			for (var i in amocrm_item.amocrm_fields_additional)
+			{
+				var field = amocrm_item.amocrm_fields_additional[i];
+				if (field['field_id'] == field_id)
+				{
+					amocrm_item.amocrm_fields_additional[i]['field_value1'] = value;
+					return;
+				}
+			}
+		}
+	);
+	
+	
+	// Change value2
+	jQuery(document).on(
+		'change',
+		'.amocrm_additional_field_value2 select', 
+		function()
+		{
+			var value = jQuery(this).val();
+			var field_id = jQuery(this).attr("data-field-id");
+			for (var i in amocrm_item.amocrm_item.amocrm_fields_additional)
+			{
+				var field = amocrm_item.amocrm_fields_additional[i];
+				if (field['field_id'] == field_id)
+				{
+					amocrm_item.amocrm_fields_additional[i]['field_value2'] = value;
+					return;
+				}
+			}
+		}
+	);
+	
+	
+	// Remove value
+	jQuery(document).on(
+		'click',
+		'.amocrm_additional_field_remove_button', 
+		function()
+		{
+			var field_id = jQuery(this).attr("data-field-id");
+			for (var i in amocrm_item.amocrm_fields_additional)
+			{
+				var field = amocrm_item.amocrm_fields_additional[i];
+				if (field['field_id'] == field_id)
+				{
+					amocrm_item.amocrm_fields_additional.splice(i, 1);
+					break;
+				}
+			}
+			
+			render_additional_fields();
+		}
+	);
+	
+	
+	// Add field
+	jQuery(document).on(
+		'change',
+		'.amocrm_add_field_select', 
+		function()
+		{
+			if (amocrm_item.amocrm_fields_additional == undefined) amocrm_item.amocrm_fields_additional = [];
+			var field_id = jQuery(this).val();
+			var field = amocrm_find_field(field_id);
+			if (!field)
+			{
+				return ;
+			}
+			if (amocrm_find_additional_field(field_id))
+			{
+				return;
+			}
+			
+			amocrm_item.amocrm_fields_additional.push({
+				'field_id': field.field_id,
+				'field_value1': '',
+				'field_value2': '',
+			});
+			
+			render_additional_fields();
+		}
+	);
+	
+});
+</script>
+
+<?php
+}
+
+
 
 
 
@@ -562,20 +854,6 @@ public static function displaySelectAmoCRMFormFields($item, $form_settings, $key
 		</option>
 		<?php
 	}
-}
-
-
-public static function displaySelectAmoCRMAdditionalFields($item, $amocrm_fields)
-{
-	foreach ($amocrm_fields as $field)
-	{
-		?>
-		<option value="<?= esc_attr($field['user_id']) ?>" >
-			<?= esc_html($field['name']) ?> (<?= esc_html($field['db']) ?>)
-		</option>
-		<?php
-	}
-	
 }
 
 

@@ -142,13 +142,16 @@ public static function loadFormSettings()
 public static function loadIntegrations()
 {
 	global $wpdb;
+	$form_id = $_GET['id'];
 	$table_name = $wpdb->prefix . 'elberos_forms_integrations';
-	static::$forms_integrations = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT * FROM $table_name", []
-		), 
-		ARRAY_A
-	);	
+	$table_name_settings = $wpdb->prefix . 'elberos_forms_integrations_settings';
+	$q = $wpdb->prepare(
+		"SELECT t.*, s.enable FROM $table_name as t
+			LEFT JOIN $table_name_settings as s on (t.id = s.integration_id and s.form_id = %d)
+		",
+		[$form_id]
+	);
+	static::$forms_integrations = $wpdb->get_results($q, ARRAY_A);
 }
 
 
@@ -255,9 +258,11 @@ public static function showIntegrationsList()
 	$url = "?page=elberos-forms&action=integrations&id=" . $form_id;
 	foreach (static::$forms_integrations as $forms_integration)
 	{
+		$enable = $forms_integration['enable'];
+		if ($enable == 1) $enable = 'ON'; else $enable = 'OFF';
 		?>
 		<a class='forms_integration_item' href='<?= $url . "&integration=" . $forms_integration['id'] ?>'>
-			<?php echo $forms_integration['name'] ?>
+			<?php echo $forms_integration['name'] ?> [<?= $enable ?>]
 		</a>
 		<?php
 	}
@@ -266,7 +271,10 @@ public static function showIntegrationsList()
 
 public static function showIntegrationsSettings()
 {
-	$nonce = isset($_REQUEST['nonce']) ? $_REQUEST['nonce'] : false;
+	global $wpdb;
+	
+	$nonce = isset($_POST['nonce']) ? $_POST['nonce'] : false;
+	$form_id = $_GET['id'];
 	$integration_id = $_GET['integration'];
 	$forms_integration = static::getIntegrationById($integration_id);
 	if ($forms_integration == null)
@@ -278,14 +286,13 @@ public static function showIntegrationsSettings()
 	$amocrm_managers = static::loadAmoCRMManagers($integration_id);
 	$amocrm_fields = static::loadAmoCRMFields($integration_id);
 	
-	//var_dump($amocrm_statuses);
-	
+	$item_enable = "0";
 	$item = [
-		'pipeline_id' => '',
-		'status_id' => '',
-		'manager_id' => '',
-		'tags' => '',
-		'fields' => '',
+		'amocrm_pipeline' => '',
+		'amocrm_status' => '',
+		'amocrm_manager' => '',
+		'amocrm_tags' => '',
+		'amocrm_fields' => '',
 	];
 	
 	$notice = "";
@@ -293,6 +300,54 @@ public static function showIntegrationsSettings()
 	if ($nonce != false)
 	{
 		$message = "Ok";
+		
+		$item_enable = (int)(isset($_POST['enable']) ? $_POST['enable'] : "0");
+		$item = [
+			'amocrm_pipeline' => isset($_POST['amocrm_pipeline']) ? $_POST['amocrm_pipeline'] : '',
+			'amocrm_status' => isset($_POST['amocrm_status']) ? $_POST['amocrm_status'] : '',
+			'amocrm_manager' => isset($_POST['amocrm_manager']) ? $_POST['amocrm_manager'] : '',
+			'amocrm_tags' => isset($_POST['amocrm_tags']) ? $_POST['amocrm_tags'] : '',
+			'amocrm_fields' => isset($_POST['amocrm_fields']) ? $_POST['amocrm_fields'] : '',
+		];
+		
+		$item_settings = json_encode($item);
+		$table_name_settings = $wpdb->prefix . 'elberos_forms_integrations_settings';
+		$q = $wpdb->prepare(
+			"INSERT INTO $table_name_settings 
+				(
+					form_id, integration_id, enable, settings
+				) 
+				VALUES( %d, %d, %d, %s) 
+				ON DUPLICATE KEY UPDATE
+					enable = %d,
+					settings = %s
+				",
+			[
+				$form_id, $integration_id, 
+				$item_enable, $item_settings,
+				$item_enable, $item_settings,
+			]
+		);
+		$wpdb->query($q);
+	}
+	else
+	{
+		$table_name_settings = $wpdb->prefix . 'elberos_forms_integrations_settings';
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM $table_name_settings WHERE form_id = %d and integration_id = %d", 
+				[
+					$form_id, $integration_id
+				]
+			),
+			ARRAY_A
+		);
+		if ($row)
+		{
+			$item_enable = $row['enable'];
+			$item_settings = $row['settings'];
+			$item = json_decode($item_settings, true);
+		}
 	}
 	
 	
@@ -300,28 +355,49 @@ public static function showIntegrationsSettings()
 <h2><?php echo $forms_integration['name']; ?></h2>
 
 <?php if (!empty($notice)): ?>
-	<div id="notice" class="error"><p><?php echo $notice ?></p></div>
+	<div class="error"><p><?php echo $notice ?></p></div>
 <?php endif;?>
 <?php if (!empty($message)): ?>
-	<div id="message" class="updated"><p><?php echo $message ?></p></div>
+	<div class="updated"><p><?php echo $message ?></p></div>
 <?php endif;?>
+
+
+<script>
+var amocrm_pipelines = <?= json_encode($amocrm_pipelines) ?>;
+var amocrm_statuses = <?= json_encode($amocrm_statuses) ?>;
+var amocrm_managers = <?= json_encode($amocrm_managers) ?>;
+</script>
+
 
 <form id="form" method="POST">
 
 <input type="hidden" name="nonce" value="<?php echo wp_create_nonce(basename(__FILE__))?>"/>
 
+
+<!-- enable -->
+<p>
+	<label for="enable"><?php _e('Mail Enable:', 'elberos-forms')?></label>
+<br>
+	<select id="enable" name="enable" type="text" style="width: 100%"
+		value="<?php echo esc_attr($item_enable)?>" >
+		<option value="1" <?php selected( $item_enable, "1" ); ?>>Yes</option>
+		<option value="0" <?php selected( $item_enable, "0" ); ?>>No</option>
+	</select>
+</p>
+
+
 <!-- Pipeline -->
 <p>
-	<label for="pipeline">Pipeline:</label>
+	<label for="amocrm_pipeline">Pipeline:</label>
 	<br>
-	<select id="pipeline" name="pipeline" type="text" style="width: 100%">
+	<select id="amocrm_pipeline" name="amocrm_pipeline" class='amocrm_pipeline' type="text" style="width: 100%">
 		<option value="">Select value</option>
 		<?
 			foreach ($amocrm_pipelines as $pipeline)
 			{
 				?>
 				<option value="<?= esc_attr($pipeline['pipeline_id']) ?>" 
-					<?php selected( $item['pipeline_id'], $pipeline['pipeline_id'] ); ?>> 
+					<?php selected( $item['amocrm_pipeline'], $pipeline['pipeline_id'] ); ?>> 
 						<?= esc_html($pipeline['name']) ?> 
 				</option>
 				<?php
@@ -333,38 +409,64 @@ public static function showIntegrationsSettings()
 
 <!-- Status -->
 <p>
-	<label for="status">Status:</label>
+	<label for="amocrm_status">Status:</label>
 	<br>
-	<select id="status" name="status" type="text" style="width: 100%">
+	<select id="amocrm_status" name="amocrm_status" class='amocrm_status' type="text" style="width: 100%">
 		<option value="">Select value</option>
 		<?
 			foreach ($amocrm_statuses as $status)
 			{
+				if ($status['pipeline_id'] == $item['amocrm_pipeline'])
+				{
 				?>
 				<option value="<?= esc_attr($status['status_id']) ?>" 
 					data-pipeline-id="<?= esc_attr($status['pipeline_id']) ?>"
-					<?php selected( $status['status_id'], $item['status_id'] ); ?>> 
+					<?php selected( $status['status_id'], $item['amocrm_status'] ); ?>> 
 						<?= esc_html($status['name']) ?> (<?= esc_html($status['pipeline_name']) ?>)
 				</option>
 				<?php
+				}
 			}
 		?>
 	</select>
 </p>
 
 
+<script type='text/javascript'>
+jQuery(document).ready(function(){
+    jQuery('.amocrm_pipeline').change(function(){
+		jQuery('.amocrm_status').html('');
+		jQuery('.amocrm_status').append('<option value="">Select value</option>');
+		var pipeline_id = jQuery('.amocrm_pipeline').val();
+		for (var i in amocrm_statuses)
+		{
+			var status = amocrm_statuses[i];
+			var status_id = status.status_id;
+			if (status.pipeline_id == pipeline_id)
+			{
+				var $option = jQuery('<option></option>');
+				$option.attr('value', status_id);
+				$option.html(status.name + ' (' + status.pipeline_name + ')');
+				jQuery('.amocrm_status').append($option);
+			}
+		}
+	})
+});
+</script>
+
+
 <!-- Manager -->
 <p>
-	<label for="manager">Manager:</label>
+	<label for="amocrm_manager">Manager:</label>
 	<br>
-	<select id="manager" name="manager" type="text" style="width: 100%">
+	<select id="amocrm_manager" name="amocrm_manager" class='amocrm_manager' type="text" style="width: 100%">
 		<option value="">Select value</option>
 		<?
 			foreach ($amocrm_managers as $manager)
 			{
 				?>
 				<option value="<?= esc_attr($manager['user_id']) ?>" 
-					<?php selected( $item['manager_id'], $manager['user_id'] ); ?>> 
+					<?php selected( $item['amocrm_manager'], $manager['user_id'] ); ?>> 
 						<?= esc_html($manager['name']) ?> (<?= esc_html($manager['login']) ?>)
 				</option>
 				<?php
@@ -376,9 +478,10 @@ public static function showIntegrationsSettings()
 
 <!-- Tags -->
 <p>
-	<label for="tags">Tags:</label>
+	<label for="amocrm_tags">Tags:</label>
 	<br>
-	<input id="tags" name="tags" type="text" value="<?= esc_attr( $item['tags'] )?>" style="width: 100%" />
+	<input id="amocrm_tags" name="amocrm_tags" type="text" value="<?= esc_attr( $item['amocrm_tags'] )?>" 
+		style="width: 100%" />
 </p>
 
 
@@ -390,9 +493,9 @@ public static function showIntegrationsSettings()
 	<div class="amocrm_field">
 		<div class="amocrm_field_item amocrm_field_name">Name</div>
 		<div class="amocrm_field_item amocrm_field_value">
-			<select name="fields[client_name]">
+			<select name="amocrm_fields[client_name]">
 				<option value="">Не указано</option>
-				<? static::displaySelectAmoCRMFormFields($item, static::$form_settings) ?>
+				<? static::displaySelectAmoCRMFormFields($item, static::$form_settings, 'client_name') ?>
 			</select>
 		</div>
 	</div>
@@ -402,9 +505,9 @@ public static function showIntegrationsSettings()
 	<div class="amocrm_field">
 		<div class="amocrm_field_item amocrm_field_name">Phone</div>
 		<div class="amocrm_field_item amocrm_field_value">
-			<select name="fields[client_phone]">
+			<select name="amocrm_fields[client_phone]">
 				<option value="">Не указано</option>
-				<? static::displaySelectAmoCRMFormFields($item, static::$form_settings) ?>
+				<? static::displaySelectAmoCRMFormFields($item, static::$form_settings, 'client_phone') ?>
 			</select>
 		</div>
 	</div>
@@ -414,9 +517,9 @@ public static function showIntegrationsSettings()
 	<div class="amocrm_field">
 		<div class="amocrm_field_item amocrm_field_name">Email</div>
 		<div class="amocrm_field_item amocrm_field_value">
-			<select name="fields[client_email]">
+			<select name="amocrm_fields[client_email]">
 				<option value="">Не указано</option>
-				<? static::displaySelectAmoCRMFormFields($item, static::$form_settings) ?>
+				<? static::displaySelectAmoCRMFormFields($item, static::$form_settings, 'client_email') ?>
 			</select>
 		</div>
 	</div>
@@ -439,7 +542,7 @@ public static function showIntegrationsSettings()
 
 
 
-public static function displaySelectAmoCRMFormFields($item, $form_settings)
+public static function displaySelectAmoCRMFormFields($item, $form_settings, $key)
 {
 	$settings = json_decode($form_settings['settings'], true);
 	if (!isset($settings['fields']))
@@ -447,10 +550,14 @@ public static function displaySelectAmoCRMFormFields($item, $form_settings)
 		return;
 	}
 	
+	$fields = isset($item['amocrm_fields']) ? $item['amocrm_fields'] : [];
+	$value = isset($fields[$key]) ? $fields[$key] : '';
+	
 	foreach ($settings['fields'] as $field)
 	{
 		?>
-		<option value="<?= esc_attr($field['name']) ?>" >
+		<option value="<?= esc_attr($field['name']) ?>" 
+			<?php selected( $value, $field['name'] ); ?> >
 			<?= esc_html($field['title']) ?> (<?= esc_html($field['name']) ?>)
 		</option>
 		<?php
@@ -458,7 +565,7 @@ public static function displaySelectAmoCRMFormFields($item, $form_settings)
 }
 
 
-public static function displaySelectAmoCRMFields($item, $amocrm_fields)
+public static function displaySelectAmoCRMAdditionalFields($item, $amocrm_fields)
 {
 	foreach ($amocrm_fields as $field)
 	{

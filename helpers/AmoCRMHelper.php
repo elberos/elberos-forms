@@ -236,7 +236,7 @@ class AmoCRMHelper
 	/**
 	 * Синхронизирует данные из AmoCRM
 	 */
-	public function syncData($wpdb, $config)
+	public static function syncData($wpdb, $config)
 	{
 		$host = $config["domain"] . ".amocrm.ru";
 		$file_cache = ABSPATH . "wp-content/cache/amocrm-".$host.".data.cache";
